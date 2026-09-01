@@ -49,7 +49,7 @@
   p.hint {
     font-size: 12px;
     color: #9FA1A4;
-    margin: 18px 0 0;
+    margin: 0 0 18px;
     line-height: 1.4;
   }
   #loading { display: none; font-size: 14px; color: #6E7072; }
@@ -65,53 +65,43 @@
 
 <script>
   var EXEC_URL = 'https://script.google.com/macros/s/AKfycbw8btSucorhtV8STuRMx0DtdPN_NjPtkJa3IglA_TmNc2EsWVWgjJ3TT0-JRdbsp0qS9A/exec';
-  var TOKEN_KEY = 'wowPairedToken';
   var content = document.getElementById('content');
 
-  var params = new URLSearchParams(window.location.search);
-  var incomingToken = params.get('setToken');
-  var shouldClear = params.get('clear');
-
-  if (incomingToken) {
-    try { localStorage.setItem(TOKEN_KEY, incomingToken); } catch (e) {}
-  }
-  if (shouldClear) {
-    try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
-  }
-  if (incomingToken || shouldClear) {
-    // Keep the saved/bookmarked URL clean - the token lives in localStorage, not the URL.
-    history.replaceState(null, '', window.location.pathname);
-  }
-
-  var pairedToken = null;
-  try { pairedToken = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+  // The pairing token lives entirely in THIS page's own URL, not in browser
+  // storage - a standalone home-screen web app can run in a storage context
+  // isolated from regular Safari, so anything written to localStorage during
+  // setup (a normal Safari tab) isn't guaranteed to be visible later from the
+  // installed icon. A bookmarked URL doesn't have that problem: whatever URL
+  // was current when "Add to Home Screen" was tapped is exactly what the icon
+  // reopens every time, token included.
+  var token = new URLSearchParams(window.location.search).get('t');
+  var openUrl = token ? (EXEC_URL + '?t=' + encodeURIComponent(token)) : EXEC_URL;
 
   var isStandalone = window.navigator.standalone === true ||
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 
-  if (isStandalone && pairedToken) {
-    // Already installed and already paired - skip straight to the app, no tap needed.
+  if (isStandalone && token) {
+    // Already installed (icon tapped) and already paired - skip straight to the app.
     document.getElementById('loading').style.display = 'block';
-    location.replace(EXEC_URL + '?t=' + encodeURIComponent(pairedToken));
+    location.replace(openUrl);
   } else {
     render();
   }
 
   function render() {
-    var openUrl = pairedToken ? (EXEC_URL + '?t=' + encodeURIComponent(pairedToken)) : EXEC_URL;
-    var heading = pairedToken ? 'Welcome back!' : 'WOW Time Clock';
-    var sub = pairedToken
+    var heading = token ? 'Welcome back!' : 'WOW Time Clock';
+    var sub = token
       ? "Tap below to clock in or out."
       : "Tap below to get started. If this is a manager setting up a phone for the first time, you'll pick a name and enter the setup passcode on the next page.";
     var addedNote = isStandalone
       ? ''
-      : '<p class="hint">Tip: after tapping below, use <strong>Share &rarr; Add to Home Screen</strong> so this page shows the WOW icon and opens instantly next time.</p>';
+      : '<p class="hint">Want one-tap access next time? Tap <strong>Share &rarr; Add to Home Screen</strong> right now, on this page, before tapping the button below.</p>';
 
     content.innerHTML =
       '<h1>' + heading + '</h1>' +
       '<p class="sub">' + sub + '</p>' +
-      '<a class="btn-link" href="' + openUrl + '">Open WOW Time Clock</a>' +
-      addedNote;
+      addedNote +
+      '<a class="btn-link" href="' + openUrl + '">Open WOW Time Clock</a>';
   }
 </script>
 </body>
