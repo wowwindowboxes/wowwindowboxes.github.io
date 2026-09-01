@@ -69,14 +69,20 @@
   var EXEC_URL = 'https://script.google.com/macros/s/AKfycbw8btSucorhtV8STuRMx0DtdPN_NjPtkJa3IglA_TmNc2EsWVWgjJ3TT0-JRdbsp0qS9A/exec';
   var content = document.getElementById('content');
 
-  // The pairing token lives entirely in THIS page's own URL, not in browser
-  // storage - a standalone home-screen web app can run in a storage context
-  // isolated from regular Safari, so anything written to localStorage during
-  // setup (a normal Safari tab) isn't guaranteed to be visible later from the
-  // installed icon. A bookmarked URL doesn't have that problem: whatever URL
-  // was current when "Add to Home Screen" was tapped is exactly what the icon
-  // reopens every time, token included.
-  var token = new URLSearchParams(window.location.search).get('t');
+  // The pairing token normally lives in THIS page's own URL - that's what
+  // Safari/Firefox "Add to Home Screen" saves, since it bookmarks whatever URL
+  // was current at save time, token included. Chrome's full "Install" doesn't
+  // do that: the installed icon always opens the manifest's start_url ("/"),
+  // dropping the query string. Unlike old iOS Safari, Chrome's installed PWA
+  // does share localStorage with the regular browser tab for this origin, so
+  // we mirror the token there and fall back to it when the URL has none.
+  var urlToken = new URLSearchParams(window.location.search).get('t');
+  var token = urlToken;
+  if (urlToken) {
+    try { localStorage.setItem('wowTimeClockToken', urlToken); } catch (e) {}
+  } else {
+    try { token = localStorage.getItem('wowTimeClockToken') || ''; } catch (e) { token = ''; }
+  }
   var openUrl = token ? (EXEC_URL + '?t=' + encodeURIComponent(token)) : EXEC_URL;
 
   var isStandalone = window.navigator.standalone === true ||
